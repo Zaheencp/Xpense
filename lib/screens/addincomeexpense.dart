@@ -8,7 +8,6 @@ import 'package:xpense/screens/widgets/authbutton.dart';
 import 'package:xpense/screens/widgets/transactions.dart';
 import 'package:xpense/screens/widgets/bottomnavbar.dart';
 import 'package:xpense/screens/receipt_scanner_screen.dart';
-import 'package:xpense/screens/qr_scanner_screen.dart';
 
 class Addinex extends StatefulWidget {
   const Addinex({super.key});
@@ -26,6 +25,7 @@ class _AddinexState extends State<Addinex> {
   List<Expensecategory> Expence = Expensecategory.expenses;
   final memocontroller = TextEditingController();
   final locationController = TextEditingController();
+  final paymentMethodController = TextEditingController();
   IconData? icon;
   String textincome = '';
   String textexpense = '';
@@ -99,6 +99,16 @@ class _AddinexState extends State<Addinex> {
                               height: 16,
                             ),
                             Transactions(
+                                onclick: () {
+                                  showPaymentMethodDialog();
+                                },
+                                icons: FontAwesomeIcons.wallet,
+                                hintText: 'payment method',
+                                controller: paymentMethodController),
+                            const SizedBox(
+                              height: 16,
+                            ),
+                            Transactions(
                                 type: TextInputType.number,
                                 onclick: () {},
                                 icons: FontAwesomeIcons.dollarSign,
@@ -154,6 +164,7 @@ class _AddinexState extends State<Addinex> {
                                     datecontroller.text,
                                     memocontroller.text,
                                     location: locationController.text,
+                                    paymentMethod: paymentMethodController.text,
                                     onBudgetAlert: (msg) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
@@ -197,6 +208,7 @@ class _AddinexState extends State<Addinex> {
                                   amountcontroller.clear();
                                   memocontroller.clear();
                                   locationController.clear();
+                                  paymentMethodController.clear();
                                 },
                                 title: 'Save transaction',
                                 textcolor: Colors.white),
@@ -223,8 +235,8 @@ class _AddinexState extends State<Addinex> {
                           color: Colors.white, size: 64),
                       const SizedBox(height: 20),
                       const Text(
-                        'Scan bills or QR codes to auto-fill and add expenses',
-                        style: TextStyle(color: Colors.white),
+                        'Scan bills to auto-fill and add expenses',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 30),
@@ -244,23 +256,6 @@ class _AddinexState extends State<Addinex> {
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 48),
                           backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const QRScannerScreen(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.qr_code_scanner),
-                        label: const Text('Scan QR Code'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -380,5 +375,61 @@ class _AddinexState extends State<Addinex> {
       categorycontroller.text = textincome;
       print(categorycontroller.text);
     });
+  }
+
+  Future showPaymentMethodDialog() {
+    final paymentMethods = [
+      {'name': 'Card', 'icon': FontAwesomeIcons.creditCard},
+      {'name': 'UPI', 'icon': FontAwesomeIcons.mobileScreen},
+      {'name': 'Cash', 'icon': FontAwesomeIcons.moneyBill},
+    ];
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Payment Method',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.black,
+        content: SizedBox(
+          height: 200,
+          width: 300,
+          child: GridView.builder(
+            itemCount: paymentMethods.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) => InkWell(
+              onTap: () {
+                setState(() {
+                  paymentMethodController.text =
+                      paymentMethods[index]['name'] as String;
+                });
+                Navigator.pop(context);
+              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    paymentMethods[index]['icon'] as IconData,
+                    color: Colors.green,
+                    size: 40,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    paymentMethods[index]['name'] as String,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

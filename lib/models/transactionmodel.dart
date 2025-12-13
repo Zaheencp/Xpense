@@ -7,6 +7,7 @@ class TransactionModel {
   final String date;
   final String memo;
   final String? location;
+  final String? paymentMethod;
 
   TransactionModel({
     required this.id,
@@ -15,6 +16,7 @@ class TransactionModel {
     required this.memo,
     required this.date,
     this.location,
+    this.paymentMethod,
   });
 
   // Convert the object to a Map for adding to Firebase
@@ -27,6 +29,9 @@ class TransactionModel {
       'date': EncryptionService.encryptText(date),
       'location':
           location != null ? EncryptionService.encryptText(location!) : null,
+      'paymentMethod': paymentMethod != null
+          ? EncryptionService.encryptText(paymentMethod!)
+          : null,
     };
   }
 
@@ -41,6 +46,9 @@ class TransactionModel {
       date: EncryptionService.decryptText(transaction['date'] ?? ''),
       location: transaction['location'] != null
           ? EncryptionService.decryptText(transaction['location'])
+          : null,
+      paymentMethod: transaction['paymentMethod'] != null
+          ? EncryptionService.decryptText(transaction['paymentMethod'])
           : null,
     );
   }

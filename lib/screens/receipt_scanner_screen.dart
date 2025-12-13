@@ -6,11 +6,10 @@ import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:provider/provider.dart';
 // import 'package:universal_html/html.dart' as html;
 import '../controllers/firebasecontroller.dart';
+import '../controllers/cardprovider.dart';
 import '../models/categorymodel.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:xpense/screens/widgets/bottomnavbar.dart';
 
 class ReceiptScannerScreen extends StatefulWidget {
@@ -184,99 +183,6 @@ Thank you for shopping!
     }
   }
 
-  Future<void> _performCloudOCR(File imageFile) async {
-    // For production, use a backend proxy for security.
-    // Backend endpoint: POST /api/cloud-ocr { image: <base64> } => { text: ... }
-    final bytes = await imageFile.readAsBytes();
-    final base64Image = base64Encode(bytes);
-    setState(() {
-      _isProcessing = true;
-      _errorMsg = null;
-    });
-    try {
-      final response = await http.post(
-        Uri.parse(
-            'http://localhost:5000/api/cloud-ocr'), // Change to your backend endpoint
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"image": base64Image}),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final text = data['text'] ?? '';
-        if (text.isEmpty) {
-          setState(() {
-            _isProcessing = false;
-            _errorMsg = 'No text found in receipt.';
-          });
-          return;
-        }
-        _performAdvancedOCRFromText(text);
-      } else {
-        setState(() {
-          _isProcessing = false;
-          _errorMsg = 'Cloud OCR failed: \n${response.body}';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isProcessing = false;
-        _errorMsg = 'Cloud OCR error: $e';
-      });
-    }
-  }
-
-  void _performAdvancedOCRFromText(String text) {
-    String? merchant;
-    String? total;
-    String? date;
-    final lines = text.split('\n');
-    for (final line in lines) {
-      final l = line.toLowerCase();
-      if (merchant == null && l.length > 2 && !l.contains(RegExp(r'\d'))) {
-        merchant = line;
-      }
-      if (total == null && l.contains('total')) {
-        final match = RegExp(r'(\d+[.,]?\d*)').firstMatch(l);
-        if (match != null) total = match.group(1);
-      }
-      if (date == null &&
-          RegExp(r'(\d{2,4}[-/\.]\d{2}[-/\.]\d{2,4})').hasMatch(l)) {
-        date = RegExp(r'(\d{2,4}[-/\.]\d{2}[-/\.]\d{2,4})')
-            .firstMatch(l)
-            ?.group(0);
-      }
-    }
-    merchant ??= lines.isNotEmpty ? lines.first : null;
-    total ??= RegExp(r'(\d+[.,]\d{2})')
-        .allMatches(text)
-        .map((m) => m.group(0))
-        .fold<String?>(null, (prev, curr) {
-      if (prev == null) return curr;
-      return double.parse(curr!.replaceAll(',', '.')) >
-              double.parse(prev.replaceAll(',', '.'))
-          ? curr
-          : prev;
-    });
-    date ??= DateFormat('yyyy-MM-dd').format(DateTime.now());
-    setState(() {
-      _merchant = merchant;
-      _total = total;
-      _date = date;
-      _extractedText = text;
-      _isProcessing = false;
-    });
-    _selectedCategory = Expensecategory.expenses.firstWhere(
-      (cat) =>
-          _merchant != null &&
-          cat.name != null &&
-          _merchant!.toLowerCase().contains(cat.name!.toLowerCase()),
-      orElse: () => Expensecategory.expenses.first,
-    );
-    _totalController.text = _total ?? '';
-    _dateController.text = _date ?? '';
-    _memoController.text = text;
-  }
-
   void _showConfirmSheet() {
     showModalBottomSheet(
       context: context,
@@ -407,6 +313,7 @@ Thank you for shopping!
       _dateController.text,
       _memoController.text,
     );
+    if (!mounted) return;
     if (result != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $result')),
@@ -416,6 +323,19 @@ Thank you for shopping!
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Expense added!')),
     );
+
+    // Sync with TransactionProvider before navigation (although provider is global, so strict order implies updating it now)
+    if (mounted) {
+      final txProvider =
+          Provider.of<TransactionProvider>(context, listen: false);
+      // Fetch fresh data into provider to ensure home screen reflects change
+      // Note: provider.fetchcategory/amount are simple setters in this codebase
+      txProvider.fetchcategory(_selectedCategory?.name ?? 'Other');
+      txProvider.fetchamount(_totalController.text);
+      txProvider
+          .avlabalance(); // This triggers the calculation and sharedprefs update
+    }
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const Bottom()),
       (route) => false,
@@ -468,13 +388,6 @@ Thank you for shopping!
                 ElevatedButton(
                   onPressed: _showConfirmSheet,
                   child: const Text('Add as Expense'),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (_image != null) await _performCloudOCR(_image!);
-                  },
-                  child: const Text('Try Cloud OCR (Advanced)'),
                 ),
               ],
               if (_image == null && !_isProcessing)

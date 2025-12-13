@@ -159,7 +159,8 @@ class Myhome extends StatelessWidget {
           ],
           title: const Text(
             'Xpense',
-            style: TextStyle(color: Colors.white, fontSize: 16),
+            style: TextStyle(
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
           shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(20))),
@@ -217,7 +218,7 @@ class Myhome extends StatelessWidget {
                               top: 45,
                               left: 140,
                               child: Text(
-                                '\$ ${value.avlbalance}',
+                                '\$ ${value.avlbalance.toStringAsFixed(2)}',
                                 style: TextStyle(
                                     fontSize: 30, color: Colors.grey[400]),
                               )),
@@ -242,7 +243,7 @@ class Myhome extends StatelessWidget {
                               left: 15,
                               bottom: 70,
                               child: Text(
-                                '\$ ${value.incomes}',
+                                '\$ ${value.incomes.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                     fontSize: 20, color: Colors.grey),
                               )),
@@ -252,7 +253,7 @@ class Myhome extends StatelessWidget {
                               right: 15,
                               bottom: 70,
                               child: Text(
-                                '\$ ${value.expenses}',
+                                '\$ ${value.expenses.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                     fontSize: 20, color: Colors.grey),
                               )),

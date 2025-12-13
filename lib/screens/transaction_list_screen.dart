@@ -53,8 +53,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       return tx.description
               .toLowerCase()
               .contains(_searchQuery.toLowerCase()) ||
-          (tx.category.toLowerCase().contains(_searchQuery.toLowerCase()) ??
-              false);
+          tx.category.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
   }
 
@@ -179,13 +178,18 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                   child: ConstrainedBox(
                                     constraints:
                                         const BoxConstraints(maxWidth: 500),
-                                    child: TransactionTile(
-                                      key: ValueKey('${tx.id}_${tx.date}'),
-                                      description: tx.description,
-                                      amount: tx.amount,
-                                      date: tx.date,
-                                      isExpense: isExpense,
-                                      location: tx.location,
+                                    child: InkWell(
+                                      onTap: () {
+                                        _showTransactionDetails(context, tx);
+                                      },
+                                      child: TransactionTile(
+                                        key: ValueKey('${tx.id}_${tx.date}'),
+                                        description: tx.description,
+                                        amount: tx.amount,
+                                        date: tx.date,
+                                        isExpense: isExpense,
+                                        location: tx.location,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -302,6 +306,112 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           label,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.hintColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showTransactionDetails(BuildContext context, TransactionModel tx) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final isExpense = tx.amount < 0;
+        final amountColor = isExpense ? Colors.red : Colors.green;
+        final date = DateTime.tryParse(tx.date);
+        final formattedDate = date != null
+            ? DateFormat('MMMM d, yyyy • hh:mm a').format(date)
+            : tx.date;
+
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Transaction Details',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: amountColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isExpense ? 'Expense' : 'Income',
+                      style: TextStyle(
+                        color: amountColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildDetailRow(
+                  context, 'Amount', '\$${tx.amount.abs().toStringAsFixed(2)}',
+                  isBold: true, valueColor: amountColor),
+              const Divider(height: 24),
+              _buildDetailRow(context, 'Category', tx.category),
+              const Divider(height: 24),
+              _buildDetailRow(context, 'Date', formattedDate),
+              const Divider(height: 24),
+              _buildDetailRow(context, 'Note', tx.description),
+              if (tx.location != null && tx.location!.isNotEmpty) ...[
+                const Divider(height: 24),
+                _buildDetailRow(context, 'Location', tx.location!),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(BuildContext context, String label, String value,
+      {bool isBold = false, Color? valueColor}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  color: valueColor,
+                ),
           ),
         ),
       ],

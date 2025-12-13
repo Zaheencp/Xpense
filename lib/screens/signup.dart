@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:xpense/services/firebase.dart';
 import 'package:xpense/screens/login.dart';
 import 'package:xpense/screens/widgets/authbutton.dart';
-import 'package:xpense/screens/widgets/bottomnavbar.dart';
 import 'package:xpense/screens/widgets/textbutton.dart';
 import 'package:xpense/screens/widgets/textfieldwidget.dart';
 
@@ -17,6 +16,7 @@ class Signup extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         child: Column(
           children: [
             Container(
@@ -77,7 +77,9 @@ class Signup extends StatelessWidget {
                         height: 20,
                       ),
                       Textfieldwidget(
-                          controller: passwordcontroller, hinttext: 'Password'),
+                          controller: passwordcontroller,
+                          hinttext: 'Password',
+                          isPassword: true),
                       const SizedBox(
                         height: 20,
                       ),

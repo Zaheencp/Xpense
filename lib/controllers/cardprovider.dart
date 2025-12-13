@@ -49,17 +49,27 @@ class TransactionProvider extends ChangeNotifier {
 
   void getsharedpreference() async {
     prefs = await SharedPreferences.getInstance();
+    // Always default to 0.0 if keys don't exist
     _avlbalance = prefs.getDouble('avlbalance') ?? 0.0;
     _expenses = prefs.getDouble('expenses') ?? 0.0;
     _income = prefs.getDouble('incomes') ?? 0.0;
     notifyListeners();
   }
 
-  void settosharedpreference() async {
+  // Method to reset balance to 0
+  Future<void> resetBalance() async {
+    _avlbalance = 0.0;
+    _expenses = 0.0;
+    _income = 0.0;
+    await settosharedpreference();
+    notifyListeners();
+  }
+
+  Future<void> settosharedpreference() async {
     prefs = await SharedPreferences.getInstance();
-    prefs.setDouble('avlbalance', _avlbalance);
-    prefs.setDouble('expenses', _expenses);
-    prefs.setDouble('incomes', _income);
+    await prefs.setDouble('avlbalance', _avlbalance);
+    await prefs.setDouble('expenses', _expenses);
+    await prefs.setDouble('incomes', _income);
     notifyListeners();
   }
 
@@ -133,7 +143,7 @@ class TransactionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void deleteTransaction(TransactionModel tx) {
+  Future<void> deleteTransaction(TransactionModel tx) async {
     // Parse amount from the transaction
     double amount = 0.0;
     try {
@@ -175,8 +185,8 @@ class TransactionProvider extends ChangeNotifier {
     // Remove from local list
     _transactions.removeWhere((t) => t.id == tx.id);
 
-    // Save new balances
-    settosharedpreference();
+    // Save new balances (await the async operation)
+    await settosharedpreference();
     notifyListeners();
   }
 }

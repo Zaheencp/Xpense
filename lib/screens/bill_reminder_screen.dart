@@ -22,6 +22,82 @@ class _BillReminderScreenState extends State<BillReminderScreen> {
     });
   }
 
+  void _showBillDetails(BuildContext context, BillModel bill) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Bill Details',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const Divider(),
+            const SizedBox(height: 16),
+            _buildDetailRow('Bill Name', bill.name),
+            _buildDetailRow('Amount', '\$${bill.amount.toStringAsFixed(2)}'),
+            _buildDetailRow(
+                'Due Date', DateFormat('MMM dd, yyyy').format(bill.dueDate)),
+            _buildDetailRow('Status', bill.isPaid ? 'Paid' : 'Unpaid'),
+            if (bill.recurrence != null)
+              _buildDetailRow('Recurrence', bill.recurrence!),
+            if (bill.reminderDays != null)
+              _buildDetailRow(
+                  'Reminder', '${bill.reminderDays} days before due date'),
+            if (bill.notes != null && bill.notes!.isNotEmpty)
+              _buildDetailRow('Notes', bill.notes!),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAddBillDialog(BuildContext context) {
     final nameController = TextEditingController();
     final amountController = TextEditingController();
@@ -125,57 +201,20 @@ class _BillReminderScreenState extends State<BillReminderScreen> {
                 final error =
                     await Provider.of<BillProvider>(context, listen: false)
                         .addBill(bill);
+                if (!context.mounted) return;
+
                 if (error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(error)),
                   );
                 } else {
                   Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Bill added successfully')),
+                  );
                 }
               },
               child: const Text('Add Bill'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isEmpty ||
-                    amountController.text.isEmpty ||
-                    dueDate == null) {
-                  return;
-                }
-                final eventId = await CalendarService.addBillToCalendar(
-                  title: 'Bill Due: ${nameController.text}',
-                  description:
-                      'Amount: \$${amountController.text}${notesController.text.isNotEmpty ? '\nNotes: ${notesController.text}' : ''}',
-                  dueDate: dueDate!,
-                );
-                if (eventId != null) {
-                  final bill = BillModel(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    name: nameController.text,
-                    amount: double.tryParse(amountController.text) ?? 0,
-                    dueDate: dueDate!,
-                    isPaid: false,
-                    notes: notesController.text,
-                    recurrence: selectedRecurrence,
-                    reminderDays:
-                        int.tryParse(reminderDaysController.text) ?? 1,
-                    calendarEventId: eventId,
-                  );
-                  final error =
-                      await Provider.of<BillProvider>(context, listen: false)
-                          .addBill(bill);
-                  if (error != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(error)),
-                    );
-                  } else {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Added to device calendar')));
-                  }
-                }
-              },
-              child: const Text('Add to Calendar'),
             ),
           ],
         ),

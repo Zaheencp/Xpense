@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 import '../controllers/firebasecontroller.dart';
 import '../models/categorymodel.dart';
 import '../screens/widgets/bottomnavbar.dart';
+import '../controllers/cardprovider.dart';
 
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});
@@ -24,6 +25,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   String? _merchantName;
   String? _amount;
   String? _location;
+  Expensecategory? _selectedCategory;
 
   @override
   void initState() {
@@ -258,6 +260,31 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   controller: TextEditingController(text: _location),
                   onChanged: (value) => _location = value,
                 ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<Expensecategory>(
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  value: _selectedCategory,
+                  items: Expensecategory.expenses
+                      .map((category) => DropdownMenuItem(
+                            value: category,
+                            child: Row(
+                              children: [
+                                Icon(category.icon, size: 20),
+                                const SizedBox(width: 8),
+                                Text(category.name ?? ''),
+                              ],
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setStateSheet(() {
+                      _selectedCategory = value;
+                    });
+                  },
+                ),
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -303,191 +330,172 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     );
   }
 
+  String _generateUniqueTransactionId() {
+    return DateTime.now().millisecondsSinceEpoch.toString() +
+        Random().nextInt(9999).toString();
+  }
+
+  Uri _constructUPIUri({
+    required String pa,
+    required String pn,
+    required String amount,
+    required String tr,
+    required String tid,
+    String? mc,
+  }) {
+    return Uri.parse(
+      'upi://pay'
+      '?pa=$pa'
+      '&pn=${Uri.encodeComponent(pn)}'
+      '&am=$amount'
+      '&cu=INR'
+      '&tr=$tr'
+      '&tid=$tid'
+      '${mc != null ? '&mc=$mc' : ''}'
+      '&mode=02', // 02 = Secure/Signed Intent often helps
+    );
+  }
+
   void _launchUPIApp() async {
     if (_scannedData == null) return;
 
     try {
-      Uri uri = Uri.parse(_scannedData!);
+      final originalUri = Uri.parse(_scannedData!);
+      final pa = originalUri.queryParameters['pa'];
+      final pn = originalUri.queryParameters['pn'] ?? '';
+      final mc = originalUri.queryParameters['mc'];
 
-      // Check if amount is in the original QR code
-      bool hasAmountInOriginalQR = uri.queryParameters.containsKey('am') &&
-          uri.queryParameters['am'] != null &&
-          uri.queryParameters['am']!.isNotEmpty;
+      if (pa == null || pa.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Invalid QR: Missing Payee Address (pa)')),
+        );
+        return;
+      }
+
+      // Generate unique IDs for this attempt
+      final txnId = _generateUniqueTransactionId();
+
+      // Determine amount to use
+      String finalAmount;
+      bool hasAmountInOriginalQR =
+          originalUri.queryParameters.containsKey('am') &&
+              originalUri.queryParameters['am'] != null &&
+              originalUri.queryParameters['am']!.isNotEmpty;
 
       if (hasAmountInOriginalQR) {
-        // Dynamic QR: Launch exactly as scanned (amount is pre-filled)
-        print('launching UPI app with pre-filled amount: $uri');
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          Future.delayed(const Duration(seconds: 5), () {
-            _saveExpenseAfterPayment();
-          });
-        } else {
-          _showUPIAppsList();
-        }
+        finalAmount = originalUri.queryParameters['am']!;
       } else {
-        // Static QR: Create new URL with user-entered amount
         if (_amount == null || _amount!.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Please enter an amount to pay')),
           );
           return;
         }
-
-        // Validate amount format
-        String formattedAmount = _formatAmount(_amount!);
-        if (formattedAmount == '0.00' || formattedAmount == '0') {
+        // Format user entered amount
+        String formatted = _formatAmount(_amount!);
+        if (double.tryParse(formatted) == null ||
+            double.parse(formatted) <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Please enter a valid amount greater than 0')),
+            const SnackBar(content: Text('Please enter a valid amount > 0')),
           );
           return;
         }
-
-        // Create new UPI URL with amount (for static QR codes without signature)
-        // Amount is already formatted above
-        final newUri = uri.replace(
-          queryParameters: {
-            ...uri.queryParameters,
-            'am': formattedAmount,
-          },
-        );
-
-        print('launching UPI app with user amount: $newUri');
-        if (await canLaunchUrl(newUri)) {
-          await launchUrl(newUri, mode: LaunchMode.externalApplication);
-          Future.delayed(const Duration(seconds: 5), () {
-            _saveExpenseAfterPayment();
-          });
-        } else {
-          _showUPIAppsList();
-        }
+        finalAmount = formatted;
       }
+
+      // Construct FRESH URI (still useful for logging/debugging what would have been sent)
+      final freshUri = _constructUPIUri(
+          pa: pa, pn: pn, amount: finalAmount, tr: txnId, tid: txnId, mc: mc);
+
+      debugPrint('Mocking UPI Payment: $freshUri');
+
+      // MOCK PAYMENT SIMULATION
+      _simulateMockPayment(txnId, pn);
     } catch (e) {
+      debugPrint('Error launching UPI app: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error launching UPI app: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
-  void _showUPIAppsList() {
-    showModalBottomSheet(
+  Future<void> _simulateMockPayment(String txnId, String payeeName) async {
+    // 1. Show Processing Dialog
+    showDialog(
       context: context,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Choose UPI App',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.payment),
-            title: const Text('Google Pay'),
-            onTap: () => _launchSpecificUPI('googlepay'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.account_balance_wallet),
-            title: const Text('PhonePe'),
-            onTap: () => _launchSpecificUPI('phonepe'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.payment),
-            title: const Text('Paytm'),
-            onTap: () => _launchSpecificUPI('paytm'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.account_balance),
-            title: const Text('BHIM UPI'),
-            onTap: () => _launchSpecificUPI('bhimupi'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 20),
+            Text("Processing Mock Payment..."),
+          ],
+        ),
       ),
     );
+
+    // 2. Simulate delay
+    await Future.delayed(const Duration(milliseconds: 1300));
+
+    if (!mounted) return;
+    Navigator.pop(context); // Close processing dialog
+
+    // 3. Show Success Dialog
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 60),
+            const SizedBox(height: 20),
+            Text("Payment Successful to $payeeName"),
+            const SizedBox(height: 10),
+            Text("Ref: $txnId",
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+
+    // 4. Auto-close success dialog after 1s
+    await Future.delayed(const Duration(milliseconds: 1000));
+    if (!mounted) return;
+    Navigator.pop(context); // Close success dialog
+
+    // 5. Navigate to home screen immediately
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const Bottom()),
+      (route) => false,
+    );
+
+    // 6. Save Expense in background
+    _saveExpenseAfterPayment(mockTxnId: txnId);
   }
 
-  void _launchSpecificUPI(String app) async {
-    Navigator.pop(context);
-    String upiUrl = _scannedData!;
-
-    try {
-      Uri uri = Uri.parse(upiUrl);
-
-      // Check if amount is in the original QR code
-      bool hasAmountInOriginalQR = uri.queryParameters.containsKey('am') &&
-          uri.queryParameters['am'] != null &&
-          uri.queryParameters['am']!.isNotEmpty;
-
-      if (hasAmountInOriginalQR) {
-        // Dynamic QR: Launch exactly as scanned
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          Future.delayed(const Duration(seconds: 5), () {
-            _saveExpenseAfterPayment();
-          });
-        }
-      } else {
-        // Static QR: Add amount if user entered one
-        if (_amount != null && _amount!.isNotEmpty) {
-          // Format amount as decimal (e.g., 10.00)
-          String formattedAmount = _formatAmount(_amount!);
-
-          // Validate amount
-          if (formattedAmount == '0.00' || formattedAmount == '0') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Please enter a valid amount greater than 0')),
-            );
-            return;
-          }
-
-          final newUri = uri.replace(
-            queryParameters: {
-              ...uri.queryParameters,
-              'am': formattedAmount,
-            },
-          );
-          if (await canLaunchUrl(newUri)) {
-            await launchUrl(newUri, mode: LaunchMode.externalApplication);
-            Future.delayed(const Duration(seconds: 5), () {
-              _saveExpenseAfterPayment();
-            });
-          }
-        } else {
-          // Launch without amount - user will enter in UPI app
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-            Future.delayed(const Duration(seconds: 5), () {
-              _saveExpenseAfterPayment();
-            });
-          }
-        }
-      }
-    } catch (e) {
-      print('----------- Error launching $app: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error launching $app: $e')),
-      );
-    }
-  }
-
-  Future<void> _saveExpenseAfterPayment() async {
+  Future<void> _saveExpenseAfterPayment({String? mockTxnId}) async {
     if (_merchantName == null || _amount == null) return;
 
     final firebaseController =
         Provider.of<FirebaseController>(context, listen: false);
 
-    // Determine category based on merchant name
-    Expensecategory? selectedCategory = Expensecategory.expenses.firstWhere(
-      (cat) =>
-          _merchantName!.toLowerCase().contains(cat.name?.toLowerCase() ?? ''),
-      orElse: () => Expensecategory.expenses.first,
-    );
+    // Use selected category, or auto-detect if not selected
+    Expensecategory? selectedCategory = _selectedCategory ??
+        Expensecategory.expenses.firstWhere(
+          (cat) => _merchantName!
+              .toLowerCase()
+              .contains(cat.name?.toLowerCase() ?? ''),
+          orElse: () => Expensecategory.expenses.first,
+        );
 
     String currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    String memo = 'Payment to $_merchantName via QR Code';
+    String memo = mockTxnId != null
+        ? 'Mock Payment - Ref: $mockTxnId'
+        : 'Payment to $_merchantName via QR Code';
 
     final result = await firebaseController.addData(
       selectedCategory.name ?? 'Other',
@@ -495,6 +503,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       currentDate,
       memo,
     );
+
+    if (!mounted) return;
 
     if (result != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -504,6 +514,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Expense saved successfully!')),
       );
+
+      // Sync with TransactionProvider
+      if (mounted) {
+        final txProvider =
+            Provider.of<TransactionProvider>(context, listen: false);
+        txProvider.fetchcategory(selectedCategory.name ?? 'Other');
+        txProvider.fetchamount(_amount!);
+        txProvider.avlabalance();
+      }
     }
   }
 
@@ -513,11 +532,14 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     final firebaseController =
         Provider.of<FirebaseController>(context, listen: false);
 
-    Expensecategory? selectedCategory = Expensecategory.expenses.firstWhere(
-      (cat) =>
-          _merchantName!.toLowerCase().contains(cat.name?.toLowerCase() ?? ''),
-      orElse: () => Expensecategory.expenses.first,
-    );
+    // Use selected category, or auto-detect if not selected
+    Expensecategory? selectedCategory = _selectedCategory ??
+        Expensecategory.expenses.firstWhere(
+          (cat) => _merchantName!
+              .toLowerCase()
+              .contains(cat.name?.toLowerCase() ?? ''),
+          orElse: () => Expensecategory.expenses.first,
+        );
 
     String currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
     String memo = 'QR Payment to $_merchantName (Saved without payment)';
@@ -537,6 +559,16 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Expense saved successfully!')),
       );
+
+      // Sync with TransactionProvider
+      if (mounted) {
+        final txProvider =
+            Provider.of<TransactionProvider>(context, listen: false);
+        txProvider.fetchcategory(selectedCategory.name ?? 'Other');
+        txProvider.fetchamount(_amount!);
+        txProvider.avlabalance();
+      }
+
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const Bottom()),
         (route) => false,
@@ -586,32 +618,36 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           Expanded(
             flex: 1,
             child: Container(
+              width: double.infinity,
               color: Colors.black87,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.qr_code_scanner,
-                    size: 48,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Point camera at QR code',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  if (_isProcessing) ...[
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     const SizedBox(height: 16),
-                    const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    const Icon(
+                      Icons.qr_code_scanner,
+                      size: 48,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     const Text(
-                      'Processing QR code...',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      'Scan Qr Code',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
+                    if (_isProcessing) ...[
+                      const SizedBox(height: 16),
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Processing QR code...',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),

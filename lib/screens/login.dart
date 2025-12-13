@@ -17,6 +17,7 @@ class Loginpage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         child: Column(
           children: [
             Container(
@@ -70,7 +71,9 @@ class Loginpage extends StatelessWidget {
                         height: 20,
                       ),
                       Textfieldwidget(
-                          controller: passwordcontroller, hinttext: 'Password'),
+                          controller: passwordcontroller,
+                          hinttext: 'Password',
+                          isPassword: true),
                       const SizedBox(
                         height: 20,
                       ),

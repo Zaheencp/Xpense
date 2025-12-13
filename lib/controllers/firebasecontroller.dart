@@ -25,7 +25,9 @@ class FirebaseController extends ChangeNotifier {
 
   Future<String?> addData(
       String category, String amount, String date, String memo,
-      {String? location, BudgetAlertCallback? onBudgetAlert}) async {
+      {String? location,
+      String? paymentMethod,
+      BudgetAlertCallback? onBudgetAlert}) async {
     try {
       final user = auth.currentUser;
       if (user == null) {
@@ -43,7 +45,10 @@ class FirebaseController extends ChangeNotifier {
         'memo': EncryptionService.encryptText(memo),
         'location': location != null && location.isNotEmpty
             ? EncryptionService.encryptText(location)
-            : null
+            : null,
+        'paymentMethod': paymentMethod != null && paymentMethod.isNotEmpty
+            ? EncryptionService.encryptText(paymentMethod)
+            : null,
       });
       // Check budget after adding transaction
       _checkBudgetAlert(uid, category, double.tryParse(amount) ?? 0,

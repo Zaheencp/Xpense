@@ -8,7 +8,7 @@ class Splash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (context.mounted) {
         Provider.of<SplashProvider>(context, listen: false).completeSplash();
       }
@@ -105,7 +105,8 @@ class LogoPainter extends CustomPainter {
       center.dy - 2,
     );
     canvas.drawPath(path1, arrowPaint);
-    _drawArrowhead(canvas, Offset(center.dx - 2, center.dy - 2), 45, arrowPaint);
+    _drawArrowhead(
+        canvas, Offset(center.dx - 2, center.dy - 2), 45, arrowPaint);
 
     // Top-right arrow curving to center
     final topRight = Offset(
@@ -121,7 +122,8 @@ class LogoPainter extends CustomPainter {
       center.dy + 2,
     );
     canvas.drawPath(path2, arrowPaint);
-    _drawArrowhead(canvas, Offset(center.dx + 2, center.dy + 2), 225, arrowPaint);
+    _drawArrowhead(
+        canvas, Offset(center.dx + 2, center.dy + 2), 225, arrowPaint);
   }
 
   Path _createHexagon(Offset center, double radius) {

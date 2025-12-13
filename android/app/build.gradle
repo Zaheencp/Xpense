@@ -47,7 +47,7 @@ android {
 
     defaultConfig {
     applicationId "com.example.xpense"
-    minSdkVersion 23     // ← FIXED
+    minSdkVersion flutter.minSdkVersion     // ← FIXED
     targetSdkVersion flutter.targetSdkVersion
     versionCode flutterVersionCode.toInteger()
     versionName flutterVersionName

@@ -67,7 +67,7 @@ class Containerlistview extends StatelessWidget {
 
                       return InkWell(
                         onTap: () {
-                          //  Navigator.of(context).push(MaterialPageRoute(builder: (context)=>Listtilepage()));
+                          _showTransactionDetails(context, transactions, id);
                         },
                         child: Card(
                           color: Colors.blueGrey[800],
@@ -108,7 +108,7 @@ class Containerlistview extends StatelessWidget {
                                       constraints: const BoxConstraints(),
                                       onPressed: () async {
                                         // 1. Update Local State (Balances) Immediately
-                                        Provider.of<TransactionProvider>(
+                                        await Provider.of<TransactionProvider>(
                                           context,
                                           listen: false,
                                         ).deleteTransaction(transactions);
@@ -185,5 +185,133 @@ class Containerlistview extends StatelessWidget {
             }
           });
     });
+  }
+
+  void _showTransactionDetails(
+      BuildContext context, TransactionModel transaction, String id) {
+    // Determine if it's an expense based on category
+    final expenseCategories = [
+      'food',
+      'transportation',
+      'bills',
+      'home',
+      'car',
+      'entertainment',
+      'shopping',
+      'clothing',
+      'insurance',
+      'cigarette',
+      'telephone',
+      'health',
+      'sports',
+      'baby',
+      'pet',
+      'education',
+      'travel',
+      'gift'
+    ];
+    final isExpense =
+        expenseCategories.contains(transaction.category.toLowerCase());
+    final amountColor = isExpense ? Colors.red : Colors.green;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Transaction Details',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: amountColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isExpense ? 'Expense' : 'Income',
+                      style: TextStyle(
+                        color: amountColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildDetailRow(context, 'Amount', '\$${transaction.amount}',
+                  isBold: true, valueColor: amountColor),
+              const Divider(height: 24),
+              _buildDetailRow(context, 'Category', transaction.category),
+              const Divider(height: 24),
+              _buildDetailRow(context, 'Date', transaction.date),
+              const Divider(height: 24),
+              _buildDetailRow(context, 'Note', transaction.memo),
+              if (transaction.location != null &&
+                  transaction.location!.isNotEmpty) ...[
+                const Divider(height: 24),
+                _buildDetailRow(context, 'Location', transaction.location!),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(BuildContext context, String label, String value,
+      {bool isBold = false, Color? valueColor}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: valueColor ?? Colors.black,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
