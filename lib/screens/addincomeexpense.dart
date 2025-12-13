@@ -378,27 +378,41 @@ class _AddinexState extends State<Addinex> {
   }
 
   Future showPaymentMethodDialog() {
-    final paymentMethods = [
-      {'name': 'Card', 'icon': FontAwesomeIcons.creditCard},
-      {'name': 'UPI', 'icon': FontAwesomeIcons.mobileScreen},
-      {'name': 'Cash', 'icon': FontAwesomeIcons.moneyBill},
-    ];
+    // Check if selected category is an income category
+    bool isIncomeCategory = income.any((cat) => cat.name == categorycontroller.text);
+    
+    final List<Map<String, dynamic>> paymentMethods;
+    
+    if (isIncomeCategory) {
+      // Income section: Bank and Cash
+      paymentMethods = [
+        {'name': 'Bank', 'icon': FontAwesomeIcons.buildingColumns},
+        {'name': 'Cash', 'icon': FontAwesomeIcons.moneyBill},
+      ];
+    } else {
+      // Expense section: Card, UPI, and Cash
+      paymentMethods = [
+        {'name': 'Card', 'icon': FontAwesomeIcons.creditCard},
+        {'name': 'UPI', 'icon': FontAwesomeIcons.mobileScreen},
+        {'name': 'Cash', 'icon': FontAwesomeIcons.moneyBill},
+      ];
+    }
 
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
-          'Payment Method',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          isIncomeCategory ? 'Income Method' : 'Payment Method',
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.black,
         content: SizedBox(
-          height: 200,
+          height: isIncomeCategory ? 150 : 200,
           width: 300,
           child: GridView.builder(
             itemCount: paymentMethods.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isIncomeCategory ? 2 : 3,
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
             ),
@@ -415,7 +429,7 @@ class _AddinexState extends State<Addinex> {
                 children: [
                   Icon(
                     paymentMethods[index]['icon'] as IconData,
-                    color: Colors.green,
+                    color: isIncomeCategory ? const Color(0xFF2196F3) : Colors.green,
                     size: 40,
                   ),
                   const SizedBox(height: 8),

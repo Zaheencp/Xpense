@@ -32,13 +32,13 @@ class _TextfieldwidgetState extends State<Textfieldwidget> {
           borderSide: const BorderSide(
             color: Colors.transparent,
           ),
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(15),
         ),
         hintText: widget.hinttext,
         hintStyle: const TextStyle(color: Colors.white),
         border: OutlineInputBorder(
           borderSide: const BorderSide(),
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(15),
         ),
         suffixIcon: widget.isPassword
             ? IconButton(

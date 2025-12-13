@@ -59,9 +59,8 @@ class _BillReminderScreenState extends State<BillReminderScreen> {
             _buildDetailRow('Status', bill.isPaid ? 'Paid' : 'Unpaid'),
             if (bill.recurrence != null)
               _buildDetailRow('Recurrence', bill.recurrence!),
-            if (bill.reminderDays != null)
-              _buildDetailRow(
-                  'Reminder', '${bill.reminderDays} days before due date'),
+            _buildDetailRow(
+                'Reminder', '${bill.reminderDays} days before due date'),
             if (bill.notes != null && bill.notes!.isNotEmpty)
               _buildDetailRow('Notes', bill.notes!),
             const SizedBox(height: 24),

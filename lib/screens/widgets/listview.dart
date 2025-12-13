@@ -278,6 +278,18 @@ class Containerlistview extends StatelessWidget {
                 const Divider(height: 24),
                 _buildDetailRow(context, 'Location', transaction.location!),
               ],
+              // Always show payment method for QR code payments as UPI
+              if (transaction.memo.toLowerCase().contains('qr') ||
+                  transaction.paymentMethod != null) ...[
+                const Divider(height: 24),
+                _buildDetailRow(
+                  context,
+                  'Payment Method',
+                  transaction.memo.toLowerCase().contains('qr')
+                      ? 'UPI'
+                      : (transaction.paymentMethod ?? 'N/A'),
+                ),
+              ],
               const SizedBox(height: 24),
             ],
           ),

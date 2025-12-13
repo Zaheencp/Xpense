@@ -20,7 +20,7 @@ class Button extends StatelessWidget {
       height: 40,
       decoration: BoxDecoration(
           color: const Color.fromARGB(255, 9, 236, 206),
-          borderRadius: BorderRadius.circular(20)),
+          borderRadius: BorderRadius.circular(15)),
       child: ElevatedButton(
         onPressed: ontap,
         style: ElevatedButton.styleFrom(backgroundColor: colors),

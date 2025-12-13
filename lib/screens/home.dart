@@ -27,11 +27,31 @@ class Myhome extends StatelessWidget {
   }
 
   Future<String> fetchDisplayName(bool isGoogleUser, User? currentUser) async {
-    if (isGoogleUser && currentUser != null) {
+    if (currentUser != null) {
       currentUser.reload();
       currentUser.getIdToken();
       currentUser = FirebaseAuth.instance.currentUser;
-      return currentUser!.displayName ?? '';
+      if (isGoogleUser) {
+        return currentUser!.displayName ?? '';
+      } else {
+        // For non-Google users, use email username part or email itself
+        String email = currentUser!.email ?? '';
+        if (email.isNotEmpty) {
+          return email.split('@')[0];
+        }
+        return 'User';
+      }
+    } else {
+      return 'User';
+    }
+  }
+
+  Future<String> fetchEmail(User? currentUser) async {
+    if (currentUser != null) {
+      currentUser.reload();
+      currentUser.getIdToken();
+      currentUser = FirebaseAuth.instance.currentUser;
+      return currentUser!.email ?? '';
     } else {
       return '';
     }
@@ -75,7 +95,22 @@ class Myhome extends StatelessWidget {
           }
         },
       ),
-      accountEmail: const Text(''),
+      accountEmail: FutureBuilder(
+        future: fetchEmail(currentUser),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Text(
+              'Loading...',
+              style: TextStyle(color: Colors.white70),
+            );
+          } else {
+            return Text(
+              snapshot.data.toString(),
+              style: const TextStyle(color: Colors.white70),
+            );
+          }
+        },
+      ),
       currentAccountPicture: Container(
         width: 60,
         height: 60,

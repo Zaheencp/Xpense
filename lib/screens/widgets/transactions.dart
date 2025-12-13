@@ -29,7 +29,7 @@ class Transactions extends StatelessWidget {
           //  focusColor: Colors.amber,
           focusedBorder: OutlineInputBorder(
               borderSide: const BorderSide(color: Colors.transparent),
-              borderRadius: BorderRadius.circular(20)),
+              borderRadius: BorderRadius.circular(15)),
           hoverColor: Colors.transparent,
           fillColor: Colors.blueGrey[900],
           filled: true,
@@ -43,7 +43,7 @@ class Transactions extends StatelessWidget {
           suffixIcon: InkWell(onTap: onclick, child: Icon(icons)),
           //  suffixIconConstraints: BoxConstraints(),
           border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(15),
               borderSide: const BorderSide(color: Colors.green, width: 3)),
           hintText: hintText,
           hintStyle: const TextStyle(color: Colors.white)),

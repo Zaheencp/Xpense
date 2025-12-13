@@ -266,7 +266,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                     labelText: 'Category',
                     border: OutlineInputBorder(),
                   ),
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   items: Expensecategory.expenses
                       .map((category) => DropdownMenuItem(
                             value: category,
@@ -494,7 +494,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
     String currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
     String memo = mockTxnId != null
-        ? 'Mock Payment - Ref: $mockTxnId'
+        ? 'QR Payment - Mock Payment - Ref: $mockTxnId'
         : 'Payment to $_merchantName via QR Code';
 
     final result = await firebaseController.addData(
@@ -502,6 +502,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       _amount!,
       currentDate,
       memo,
+      location: _location,
+      paymentMethod: 'UPI',
     );
 
     if (!mounted) return;
@@ -549,6 +551,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       _amount!,
       currentDate,
       memo,
+      location: _location,
+      paymentMethod: 'UPI',
     );
 
     if (result != null) {
