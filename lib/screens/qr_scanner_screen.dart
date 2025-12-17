@@ -27,6 +27,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   String? _location;
   Expensecategory? _selectedCategory;
 
+  // Controllers for bottom sheet fields so focus/cursor behaves correctly
+  final TextEditingController _merchantController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -56,9 +61,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location services are disabled')),
-        );
         return;
       }
 
@@ -66,18 +68,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location permission denied')),
-          );
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Location permissions are permanently denied')),
-        );
         return;
       }
 
@@ -94,12 +89,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         Placemark place = placemarks[0];
         setState(() {
           _location = '${place.locality}, ${place.country}';
+          _locationController.text = _location ?? '';
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error getting location: $e')),
-      );
+      // Silently ignore location errors; user can still enter location manually.
     }
   }
 
@@ -170,6 +164,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           _merchantName = merchantName;
           _amount = amount;
           _scannedData = qrData; // Keep original QR data intact
+        _merchantController.text = _merchantName ?? '';
+        _amountController.text = _amount ?? '';
         });
 
         // Check if amount is present in QR code
@@ -225,7 +221,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                     labelText: 'Merchant Name',
                     border: OutlineInputBorder(),
                   ),
-                  controller: TextEditingController(text: _merchantName),
+                  controller: _merchantController,
                   onChanged: (value) => _merchantName = value,
                 ),
                 const SizedBox(height: 12),
@@ -238,14 +234,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                         ? 'Amount is pre-filled from QR code'
                         : 'Enter amount to pay (e.g., 10.00)',
                   ),
-                  controller: TextEditingController(text: _amount),
+                  controller: _amountController,
+                  autofocus: !hasAmountInQR,
                   onChanged: (value) {
-                    // Format amount as user types (for static QR codes)
-                    if (!hasAmountInQR) {
-                      _amount = _formatAmount(value);
-                    } else {
-                      _amount = value;
-                    }
+                    // Just store what the user types; no auto-formatting
+                    _amount = value;
                   },
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -257,7 +250,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                     labelText: 'Location',
                     border: OutlineInputBorder(),
                   ),
-                  controller: TextEditingController(text: _location),
+                  controller: _locationController,
                   onChanged: (value) => _location = value,
                 ),
                 const SizedBox(height: 12),
@@ -443,8 +436,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     if (!mounted) return;
     Navigator.pop(context); // Close processing dialog
 
-    // 3. Show Success Dialog
-    await showDialog(
+    // 3. Show Success Dialog (non-blocking)
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
@@ -455,26 +448,30 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             const SizedBox(height: 20),
             Text("Payment Successful to $payeeName"),
             const SizedBox(height: 10),
-            Text("Ref: $txnId",
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              "Ref: $txnId",
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
           ],
         ),
       ),
     );
 
-    // 4. Auto-close success dialog after 1s
+    // 4. Save Expense in background
+    _saveExpenseAfterPayment(mockTxnId: txnId);
+
+    // 5. After 1 second, close dialog and navigate home
     await Future.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
-    Navigator.pop(context); // Close success dialog
 
-    // 5. Navigate to home screen immediately
+    // Close the success dialog
+    Navigator.of(context, rootNavigator: true).pop();
+
+    // Navigate back to the home screen
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const Bottom()),
       (route) => false,
     );
-
-    // 6. Save Expense in background
-    _saveExpenseAfterPayment(mockTxnId: txnId);
   }
 
   Future<void> _saveExpenseAfterPayment({String? mockTxnId}) async {
@@ -663,6 +660,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   @override
   void dispose() {
     cameraController.dispose();
+    _merchantController.dispose();
+    _amountController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 }

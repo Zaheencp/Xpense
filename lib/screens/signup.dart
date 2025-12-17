@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:xpense/controllers/cardprovider.dart';
 import 'package:xpense/services/firebase.dart';
 import 'package:xpense/screens/login.dart';
 import 'package:xpense/screens/widgets/authbutton.dart';
@@ -103,8 +105,14 @@ class Signup extends StatelessWidget {
                             }
 
                             if (response == null) {
-                              // Success
+                              // Success - reset balances for the new account
                               if (context.mounted) {
+                                // Ensure all three values on the home screen
+                                // (available balance, income, expense) start at zero.
+                                Provider.of<TransactionProvider>(context,
+                                        listen: false)
+                                    .resetBalance();
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                         content: Text(

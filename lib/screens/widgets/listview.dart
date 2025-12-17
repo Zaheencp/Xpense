@@ -216,82 +216,90 @@ class Containerlistview extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+          padding: EdgeInsets.only(
+            left: 24.0,
+            right: 24.0,
+            top: 24.0,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24.0,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Transaction Details',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: amountColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      isExpense ? 'Expense' : 'Income',
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Transaction Details',
                       style: TextStyle(
-                        color: amountColor,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: amountColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        isExpense ? 'Expense' : 'Income',
+                        style: TextStyle(
+                          color: amountColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _buildDetailRow(context, 'Amount', '\$${transaction.amount}',
+                    isBold: true, valueColor: amountColor),
+                const Divider(height: 24),
+                _buildDetailRow(context, 'Category', transaction.category),
+                const Divider(height: 24),
+                _buildDetailRow(context, 'Date', transaction.date),
+                const Divider(height: 24),
+                _buildDetailRow(context, 'Note', transaction.memo),
+                if (transaction.location != null &&
+                    transaction.location!.isNotEmpty) ...[
+                  const Divider(height: 24),
+                  _buildDetailRow(context, 'Location', transaction.location!),
+                ],
+                // Always show payment method for QR code payments as UPI
+                if (transaction.memo.toLowerCase().contains('qr') ||
+                    transaction.paymentMethod != null) ...[
+                  const Divider(height: 24),
+                  _buildDetailRow(
+                    context,
+                    'Payment Method',
+                    transaction.memo.toLowerCase().contains('qr')
+                        ? 'UPI'
+                        : (transaction.paymentMethod ?? 'N/A'),
                   ),
                 ],
-              ),
-              const SizedBox(height: 24),
-              _buildDetailRow(context, 'Amount', '\$${transaction.amount}',
-                  isBold: true, valueColor: amountColor),
-              const Divider(height: 24),
-              _buildDetailRow(context, 'Category', transaction.category),
-              const Divider(height: 24),
-              _buildDetailRow(context, 'Date', transaction.date),
-              const Divider(height: 24),
-              _buildDetailRow(context, 'Note', transaction.memo),
-              if (transaction.location != null &&
-                  transaction.location!.isNotEmpty) ...[
-                const Divider(height: 24),
-                _buildDetailRow(context, 'Location', transaction.location!),
+                const SizedBox(height: 24),
               ],
-              // Always show payment method for QR code payments as UPI
-              if (transaction.memo.toLowerCase().contains('qr') ||
-                  transaction.paymentMethod != null) ...[
-                const Divider(height: 24),
-                _buildDetailRow(
-                  context,
-                  'Payment Method',
-                  transaction.memo.toLowerCase().contains('qr')
-                      ? 'UPI'
-                      : (transaction.paymentMethod ?? 'N/A'),
-                ),
-              ],
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         );
       },
